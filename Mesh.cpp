@@ -68,6 +68,7 @@ MeshBuffer::MeshBuffer(std::string const &filename) {
 				throw std::runtime_error("index entry has out-of-range vertex start/count");
 			}
 			std::string name(&strings[0] + entry.name_begin, &strings[0] + entry.name_end);
+			std::cout << name << std::endl;
 			Mesh mesh;
 			mesh.type = GL_TRIANGLES;
 			mesh.start = entry.vertex_begin;

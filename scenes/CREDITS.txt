@@ -7,3 +7,6 @@ Authors to credit:
  pool.blend -- Jim McCann
  sphere-roller.blend -- Jim McCann
  sphere-world.blend -- Jim McCann
+
+The Makefile in this folder was originally made by Dominic Calkosz and made available in the class Discord.
+I did not write the Makefile originally, I only edited it for other scenes besides hexapod.
