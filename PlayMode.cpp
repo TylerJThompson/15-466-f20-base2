@@ -12,23 +12,23 @@
 
 #include <random>
 
-GLuint hexapod_meshes_for_lit_color_texture_program = 0;
-Load< MeshBuffer > hexapod_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-	MeshBuffer const *ret = new MeshBuffer(data_path("hexapod.pnct"));
-	hexapod_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
+GLuint city_meshes_for_lit_color_texture_program = 0;
+Load< MeshBuffer > city_meshes(LoadTagDefault, []() -> MeshBuffer const * {
+	MeshBuffer const *ret = new MeshBuffer(data_path("city.pnct"));
+	city_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
-Load< Scene > hexapod_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("hexapod.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
-		Mesh const &mesh = hexapod_meshes->lookup(mesh_name);
+Load< Scene > city_scene(LoadTagDefault, []() -> Scene const * {
+	return new Scene(data_path("city.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+		Mesh const &mesh = city_meshes->lookup(mesh_name);
 
 		scene.drawables.emplace_back(transform);
 		Scene::Drawable &drawable = scene.drawables.back();
 
 		drawable.pipeline = lit_color_texture_program_pipeline;
 
-		drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
+		drawable.pipeline.vao = city_meshes_for_lit_color_texture_program;
 		drawable.pipeline.type = mesh.type;
 		drawable.pipeline.start = mesh.start;
 		drawable.pipeline.count = mesh.count;
@@ -36,7 +36,7 @@ Load< Scene > hexapod_scene(LoadTagDefault, []() -> Scene const * {
 	});
 });
 
-PlayMode::PlayMode() : scene(*hexapod_scene) {
+PlayMode::PlayMode() : scene(*city_scene) {
 	/*get pointers to leg for convenience:
 	for (auto &transform : scene.transforms) {
 		if (transform.name == "Hip.FL") hip = &transform;
@@ -50,6 +50,16 @@ PlayMode::PlayMode() : scene(*hexapod_scene) {
 	hip_base_rotation = hip->rotation;
 	upper_leg_base_rotation = upper_leg->rotation;
 	lower_leg_base_rotation = lower_leg->rotation;*/
+
+	//get pointers to stands and buttons for convenience:
+	for (auto &transform : scene.transforms) {
+		if (transform.name == "Stand.001") red_stand = &transform;
+		else if (transform.name == "Stand.002") green_stand = &transform;
+		else if (transform.name == "Stand.003") blue_stand = &transform;
+	}
+	if (red_stand == nullptr) throw std::runtime_error("Red stand not found.");
+	if (green_stand == nullptr) throw std::runtime_error("Green stand not found.");
+	if (blue_stand == nullptr) throw std::runtime_error("Blue stand not found.");
 
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -107,10 +117,11 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 				evt.motion.xrel / float(window_size.y),
 				-evt.motion.yrel / float(window_size.y)
 			);
+			//for the love of god I cannot get the camera to stop rotating in ways I don't want it to, so just don't much rotate at all
 			camera->transform->rotation = glm::normalize(
 				camera->transform->rotation
 				* glm::angleAxis(-motion.x * camera->fovy, glm::vec3(0.0f, 1.0f, 0.0f))
-				* glm::angleAxis(motion.y * camera->fovy, glm::vec3(1.0f, 0.0f, 0.0f))
+				* glm::angleAxis(motion.y * camera->fovy, glm::vec3(0.0f, 1.0f, 0.0f))
 			);
 			return true;
 		}
@@ -142,7 +153,7 @@ void PlayMode::update(float elapsed) {
 	{
 
 		//combine inputs into a move:
-		constexpr float PlayerSpeed = 30.0f;
+		constexpr float PlayerSpeed = 3.0f;
 		glm::vec2 move = glm::vec2(0.0f);
 		if (left.pressed && !right.pressed) move.x =-1.0f;
 		if (!left.pressed && right.pressed) move.x = 1.0f;
@@ -152,12 +163,34 @@ void PlayMode::update(float elapsed) {
 		//make it so that moving diagonally doesn't go faster:
 		if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
 
-		glm::mat4x3 frame = camera->transform->make_local_to_world();/*make_local_to_world() was make_local_to_parent()*/
+		glm::mat4x3 frame = camera->transform->make_local_to_parent();
 		glm::vec3 right = frame[0];
 		//glm::vec3 up = frame[1];
 		glm::vec3 forward = -frame[2];
 
-		camera->transform->position += move.x * right + move.y * forward;
+		//make it so the camera only moves in the xy-plane and stays within the current player bounds:
+		float cam_position_z = camera->transform->position.z;
+		glm::vec3 new_cam_position = camera->transform->position + (move.x * right + move.y * forward);
+		new_cam_position.x = glm::min(bounds.x_max, glm::max(bounds.x_min, new_cam_position.x));
+		new_cam_position.y = glm::min(bounds.y_max, glm::max(bounds.y_min, new_cam_position.y));
+		new_cam_position.z = cam_position_z;
+
+		//do not let player walk inside the red stand:
+		if (new_cam_position.x >= red_stand->position.x - 0.1f && new_cam_position.x <= red_stand->position.x + 0.1f &&
+			new_cam_position.y >= red_stand->position.y - 0.1f && new_cam_position.y <= red_stand->position.y + 0.1f)
+			new_cam_position = camera->transform->position;
+
+		//do not let player walk inside the green stand:
+		if (new_cam_position.x >= green_stand->position.x - 0.1f && new_cam_position.x <= green_stand->position.x + 0.1f &&
+			new_cam_position.y >= green_stand->position.y - 0.1f && new_cam_position.y <= green_stand->position.y + 0.1f)
+			new_cam_position = camera->transform->position;
+
+		//do not let player walk inside the blue stand:
+		if (new_cam_position.x >= blue_stand->position.x - 0.1f && new_cam_position.x <= blue_stand->position.x + 0.1f &&
+			new_cam_position.y >= blue_stand->position.y - 0.1f && new_cam_position.y <= blue_stand->position.y + 0.1f)
+			new_cam_position = camera->transform->position;
+
+		camera->transform->position = new_cam_position;
 	}
 
 	//reset button press counters:
@@ -202,12 +235,12 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		));
 
 		constexpr float H = 0.09f;
-		lines.draw_text("Mouse motion rotates camera; WASD moves; escape ungrabs mouse",
+		lines.draw_text(screen_text,
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
 		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text("Mouse motion rotates camera; WASD moves; escape ungrabs mouse",
+		lines.draw_text(screen_text,
 			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0xff, 0xff, 0xff, 0x00));

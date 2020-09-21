@@ -24,6 +24,14 @@ struct PlayMode : Mode {
 		uint8_t pressed = 0;
 	} left, right, down, up;
 
+	//bounds on where the player can move:
+	struct Bounds {
+		float x_min = -0.9f;
+		float x_max = 0.9f;
+		float y_min = -0.9f;
+		float y_max = 0.9f;
+	} bounds;
+
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
 
@@ -35,8 +43,15 @@ struct PlayMode : Mode {
 	glm::quat upper_leg_base_rotation;
 	glm::quat lower_leg_base_rotation;
 	float wobble = 0.0f;*/
+
+	//button stands:
+	Scene::Transform *red_stand = nullptr;
+	Scene::Transform *green_stand = nullptr;
+	Scene::Transform *blue_stand = nullptr;
 	
 	//camera:
 	Scene::Camera *camera = nullptr;
 
+	//text written on screen
+	std::string screen_text = "Stefani is cute"; //"Mouse motion rotates camera; WASD moves; escape ungrabs mouse";
 };
