@@ -67,7 +67,6 @@ struct Load {
 	T const *value;
 };
 
-
 //Specialization:
 //Load< void > just calls a function:
 template< >

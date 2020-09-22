@@ -7,7 +7,17 @@
 //Shader program that draws transformed, lit, textured vertices tinted with vertex colors:
 struct LitColorTextureProgram {
 	LitColorTextureProgram();
+	//LitColorTextureProgram(bool r_on, bool g_on, bool b_on);
 	~LitColorTextureProgram();
+
+	//bools to control if each color should be used:
+	bool r_on = false;
+	bool g_on = false;
+	bool b_on = false;
+
+	//returns the fragment shader that should be used
+	//std::string GetFragmentShader(bool r_on, bool g_on, bool b_on);
+	std::string GetFragmentShader();
 
 	GLuint program = 0;
 

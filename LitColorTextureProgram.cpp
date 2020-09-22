@@ -44,6 +44,11 @@ Load< LitColorTextureProgram > lit_color_texture_program(LoadTagEarly, []() -> L
 });
 
 LitColorTextureProgram::LitColorTextureProgram() {
+	std::cout << "Shader set with:" << std::endl;
+	std::cout << "r_on = " << r_on << std::endl;
+	std::cout << "g_on = " << g_on << std::endl;
+	std::cout << "b_on = " << b_on << std::endl;
+
 	//Compile vertex and fragment shaders using the convenient 'gl_compile_program' helper function:
 	program = gl_compile_program(
 		//vertex shader:
@@ -66,8 +71,115 @@ LitColorTextureProgram::LitColorTextureProgram() {
 		"	color = Color;\n"
 		"	texCoord = TexCoord;\n"
 		"}\n"
-	,
+		,
 		//fragment shader:
+		//GetFragmentShader(false, false, false)
+		GetFragmentShader()
+	);
+	//As you can see above, adjacent strings in C/C++ are concatenated.
+	// this is very useful for writing long shader programs inline.
+
+	//look up the locations of vertex attributes:
+	Position_vec4 = glGetAttribLocation(program, "Position");
+	Normal_vec3 = glGetAttribLocation(program, "Normal");
+	Color_vec4 = glGetAttribLocation(program, "Color");
+	TexCoord_vec2 = glGetAttribLocation(program, "TexCoord");
+
+	//look up the locations of uniforms:
+	OBJECT_TO_CLIP_mat4 = glGetUniformLocation(program, "OBJECT_TO_CLIP");
+	OBJECT_TO_LIGHT_mat4x3 = glGetUniformLocation(program, "OBJECT_TO_LIGHT");
+	NORMAL_TO_LIGHT_mat3 = glGetUniformLocation(program, "NORMAL_TO_LIGHT");
+
+	LIGHT_TYPE_int = glGetUniformLocation(program, "LIGHT_TYPE");
+	LIGHT_LOCATION_vec3 = glGetUniformLocation(program, "LIGHT_LOCATION");
+	LIGHT_DIRECTION_vec3 = glGetUniformLocation(program, "LIGHT_DIRECTION");
+	LIGHT_ENERGY_vec3 = glGetUniformLocation(program, "LIGHT_ENERGY");
+	LIGHT_CUTOFF_float = glGetUniformLocation(program, "LIGHT_CUTOFF");
+
+
+	GLuint TEX_sampler2D = glGetUniformLocation(program, "TEX");
+
+	//set TEX to always refer to texture binding zero:
+	glUseProgram(program); //bind program -- glUniform* calls refer to this program now
+
+	glUniform1i(TEX_sampler2D, 0); //set TEX to sample from GL_TEXTURE0
+
+	glUseProgram(0); //unbind program -- glUniform* calls refer to ??? now
+}
+
+/*LitColorTextureProgram::LitColorTextureProgram(bool r_on, bool g_on, bool b_on)  {
+	std::cout << "Shader set with:" << std::endl;
+	std::cout << "r_on = " << r_on << std::endl;
+	std::cout << "g_on = " << g_on << std::endl;
+	std::cout << "b_on = " << b_on << std::endl;
+
+	//Compile vertex and fragment shaders using the convenient 'gl_compile_program' helper function:
+	program = gl_compile_program(
+		//vertex shader:
+		"#version 330\n"
+		"uniform mat4 OBJECT_TO_CLIP;\n"
+		"uniform mat4x3 OBJECT_TO_LIGHT;\n"
+		"uniform mat3 NORMAL_TO_LIGHT;\n"
+		"in vec4 Position;\n"
+		"in vec3 Normal;\n"
+		"in vec4 Color;\n"
+		"in vec2 TexCoord;\n"
+		"out vec3 position;\n"
+		"out vec3 normal;\n"
+		"out vec4 color;\n"
+		"out vec2 texCoord;\n"
+		"void main() {\n"
+		"	gl_Position = OBJECT_TO_CLIP * Position;\n"
+		"	position = OBJECT_TO_LIGHT * Position;\n"
+		"	normal = NORMAL_TO_LIGHT * Normal;\n"
+		"	color = Color;\n"
+		"	texCoord = TexCoord;\n"
+		"}\n"
+		,
+		//fragment shader:
+		GetFragmentShader(r_on, g_on, b_on)
+	);
+	//As you can see above, adjacent strings in C/C++ are concatenated.
+	// this is very useful for writing long shader programs inline.
+
+	//look up the locations of vertex attributes:
+	Position_vec4 = glGetAttribLocation(program, "Position");
+	Normal_vec3 = glGetAttribLocation(program, "Normal");
+	Color_vec4 = glGetAttribLocation(program, "Color");
+	TexCoord_vec2 = glGetAttribLocation(program, "TexCoord");
+
+	//look up the locations of uniforms:
+	OBJECT_TO_CLIP_mat4 = glGetUniformLocation(program, "OBJECT_TO_CLIP");
+	OBJECT_TO_LIGHT_mat4x3 = glGetUniformLocation(program, "OBJECT_TO_LIGHT");
+	NORMAL_TO_LIGHT_mat3 = glGetUniformLocation(program, "NORMAL_TO_LIGHT");
+
+	LIGHT_TYPE_int = glGetUniformLocation(program, "LIGHT_TYPE");
+	LIGHT_LOCATION_vec3 = glGetUniformLocation(program, "LIGHT_LOCATION");
+	LIGHT_DIRECTION_vec3 = glGetUniformLocation(program, "LIGHT_DIRECTION");
+	LIGHT_ENERGY_vec3 = glGetUniformLocation(program, "LIGHT_ENERGY");
+	LIGHT_CUTOFF_float = glGetUniformLocation(program, "LIGHT_CUTOFF");
+
+
+	GLuint TEX_sampler2D = glGetUniformLocation(program, "TEX");
+
+	//set TEX to always refer to texture binding zero:
+	glUseProgram(program); //bind program -- glUniform* calls refer to this program now
+
+	glUniform1i(TEX_sampler2D, 0); //set TEX to sample from GL_TEXTURE0
+
+	glUseProgram(0); //unbind program -- glUniform* calls refer to ??? now
+}*/
+
+LitColorTextureProgram::~LitColorTextureProgram() {
+	glDeleteProgram(program);
+	program = 0;
+}
+
+//help with creating a grayscale shader came from this forum thread: https://www.allegro.cc/forums/thread/617729
+//std::string LitColorTextureProgram::GetFragmentShader(bool r_on, bool g_on, bool b_on) {
+std::string LitColorTextureProgram::GetFragmentShader() {
+	//fragment shader:
+	std::string fragment_shader =
 		"#version 330\n"
 		"uniform sampler2D TEX;\n"
 		"uniform int LIGHT_TYPE;\n"
@@ -103,42 +215,14 @@ LitColorTextureProgram::LitColorTextureProgram() {
 		"		e = max(0.0, dot(n,-LIGHT_DIRECTION)) * LIGHT_ENERGY;\n"
 		"	}\n"
 		"	vec4 albedo = texture(TEX, texCoord) * color;\n"
-		"	fragColor = vec4(e*albedo.rgb, albedo.a);\n"
-		"}\n"
-	);
-	//As you can see above, adjacent strings in C/C++ are concatenated.
-	// this is very useful for writing long shader programs inline.
+		"   float colorAvg = (albedo.r + albedo.g + albedo.b) / 3.0;\n";
+	if (!r_on)
+		fragment_shader += "   albedo.r = colorAvg;\n";
+	if (!g_on)
+		fragment_shader += "   albedo.g = colorAvg;\n";
+	if (!b_on)
+		fragment_shader += "   albedo.b = colorAvg;\n";
+	fragment_shader += "	fragColor = vec4(e*albedo.rgb, albedo.a);\n}\n";
 
-	//look up the locations of vertex attributes:
-	Position_vec4 = glGetAttribLocation(program, "Position");
-	Normal_vec3 = glGetAttribLocation(program, "Normal");
-	Color_vec4 = glGetAttribLocation(program, "Color");
-	TexCoord_vec2 = glGetAttribLocation(program, "TexCoord");
-
-	//look up the locations of uniforms:
-	OBJECT_TO_CLIP_mat4 = glGetUniformLocation(program, "OBJECT_TO_CLIP");
-	OBJECT_TO_LIGHT_mat4x3 = glGetUniformLocation(program, "OBJECT_TO_LIGHT");
-	NORMAL_TO_LIGHT_mat3 = glGetUniformLocation(program, "NORMAL_TO_LIGHT");
-
-	LIGHT_TYPE_int = glGetUniformLocation(program, "LIGHT_TYPE");
-	LIGHT_LOCATION_vec3 = glGetUniformLocation(program, "LIGHT_LOCATION");
-	LIGHT_DIRECTION_vec3 = glGetUniformLocation(program, "LIGHT_DIRECTION");
-	LIGHT_ENERGY_vec3 = glGetUniformLocation(program, "LIGHT_ENERGY");
-	LIGHT_CUTOFF_float = glGetUniformLocation(program, "LIGHT_CUTOFF");
-
-
-	GLuint TEX_sampler2D = glGetUniformLocation(program, "TEX");
-
-	//set TEX to always refer to texture binding zero:
-	glUseProgram(program); //bind program -- glUniform* calls refer to this program now
-
-	glUniform1i(TEX_sampler2D, 0); //set TEX to sample from GL_TEXTURE0
-
-	glUseProgram(0); //unbind program -- glUniform* calls refer to ??? now
+	return fragment_shader;
 }
-
-LitColorTextureProgram::~LitColorTextureProgram() {
-	glDeleteProgram(program);
-	program = 0;
-}
-
