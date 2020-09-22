@@ -1,6 +1,7 @@
-# (TODO: your game's title)
+# Color Puzzle
+(More like Colorless Puzzle right now)
 
-Author: (TODO: your name)
+Author: Tyler Thompson
 
 Design: (TODO: In two sentences or fewer, describe what is new and interesting about your game.)
 
